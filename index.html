@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Interior Feedback Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700&family=Playfair+Display:wght@600;700&display=swap');
+
+  :root {
+    --bg: #F5F0EB;
+    --card: #FFFFFF;
+    --primary: #2C5F4B;
+    --primary-light: #3A7D63;
+    --primary-dark: #1E4435;
+    --accent: #D4A853;
+    --accent-light: #F0DDB4;
+    --text: #1A1A1A;
+    --text-muted: #6B6B6B;
+    --border: #E0D8CF;
+    --danger: #C0392B;
+    --star-empty: #D5CFC7;
+    --star-fill: #D4A853;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow-x: hidden; width: 100%; }
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    padding: 28px 20px 22px; text-align: center;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 4px 20px rgba(44,95,75,0.3); overflow: hidden;
+  }
+  .header::before {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 70%, rgba(212,168,83,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 40%);
+    pointer-events: none;
+  }
+  .header h1 { color: #fff; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; position: relative; }
+  .header p { color: rgba(255,255,255,0.65); font-size: 12px; margin-top: 4px; letter-spacing: 0.5px; position: relative; }
+  .tabs {
+    display: flex; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 78px; z-index: 99;
+  }
+  .tab {
+    flex: 1; padding: 14px 8px; text-align: center;
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    border: none; background: none; cursor: pointer;
+    border-bottom: 3px solid transparent; font-family: inherit;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .tab:hover { color: var(--primary); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .container { padding: 16px; max-width: 640px; margin: 0 auto; overflow-x: hidden; }
+  .section {
+    background: var(--card); border-radius: 14px;
+    padding: 20px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px; font-weight: 700; color: var(--primary);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .field label .req { color: var(--danger); }
+  .field input, .field textarea, .field select {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 15px;
+    background: #FAFAF7; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(44,95,75,0.1);
+    background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field { flex: 1; }
+  .star-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .star-row svg { cursor: pointer; transition: transform 0.15s; fill: var(--star-empty); width: 30px; height: 30px; flex-shrink: 0; }
+  .star-row svg:hover { transform: scale(1.15); }
+  .star-row svg.filled { fill: var(--star-fill); }
+  .star-row .rtxt { margin-left: 6px; font-size: 12px; font-weight: 600; color: var(--accent); }
+  .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .toggle-btn {
+    padding: 7px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    background: #FAFAF7; font-family: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; color: var(--text); flex-shrink: 0;
+  }
+  .toggle-btn:hover { border-color: var(--primary); }
+  .toggle-btn.active-yes { background: #E8F5E9; border-color: #2C5F4B; color: #2C5F4B; font-weight: 700; }
+  .toggle-btn.active-no { background: #FDECEA; border-color: #C0392B; color: #C0392B; font-weight: 700; }
+  .toggle-btn.active-partial { background: #FFF8E1; border-color: #D4A853; color: #8B6914; font-weight: 700; }
+  .submit-btn {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: #fff; border: none; border-radius: 12px;
+    font-family: inherit; font-size: 16px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 15px rgba(44,95,75,0.3);
+    transition: transform 0.1s;
+  }
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .summary-bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .summary-card {
+    flex: 1; min-width: 80px; background: var(--card); border-radius: 12px;
+    padding: 14px 10px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border);
+  }
+  .summary-card .num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--primary); }
+  .summary-card .lbl { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .search-bar input {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    font-family: inherit; font-size: 14px; background: var(--card); outline: none;
+  }
+  .search-bar input:focus { border-color: var(--primary); }
+  .refresh-btn {
+    padding: 8px 16px; background: var(--primary); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border);
+    animation: slideUp 0.3s ease; overflow: hidden; word-wrap: break-word;
+  }
+  @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .card .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .card .owner { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: var(--primary); }
+  .card .flat-badge { background: var(--accent-light); color: #8B6914; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 8px; }
+  .card .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .card .chip { background: #F5F0EB; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+  .card .chip.chip-yes { background: #E8F5E9; color: #2C5F4B; }
+  .card .chip.chip-no { background: #FDECEA; color: #C0392B; }
+  .card .chip.chip-partial { background: #FFF8E1; color: #8B6914; }
+  .card .stars-row { display: flex; align-items: center; gap: 3px; margin-bottom: 6px; }
+  .card .stars-row .label { margin-left: 6px; font-size: 12px; font-weight: 600; }
+  .card .comment { font-size: 14px; color: var(--text-muted); line-height: 1.6; padding: 10px; background: #FAFAF7; border-radius: 8px; margin-bottom: 10px; }
+  .card .footer { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted); padding-top: 8px; border-top: 1px solid var(--border); gap: 8px; }
+  .card .footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
+  .card .contact-row { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px; word-break: break-all; }
+  .card .contact-row a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .card .ratings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-bottom: 10px; }
+  .card .ratings-grid .rg-item { display: flex; align-items: center; gap: 3px; min-width: 0; }
+  .card .ratings-grid .rg-label { font-size: 10px; color: var(--text-muted); min-width: 46px; flex-shrink: 0; }
+  .card .ratings-grid .rg-stars { display: flex; gap: 0px; flex-shrink: 0; }
+  .chart-section {
+    background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border);
+    animation: slideUp 0.35s ease; overflow: hidden;
+  }
+  .chart-section .chart-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight: 700; color: var(--primary);
+    margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .chart-canvas-wrap { position: relative; width: 100%; overflow: hidden; }
+  .chart-canvas-wrap canvas { width: 100% !important; max-width: 100%; }
+  .analytics-summary {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px;
+  }
+  @media (min-width: 420px) { .analytics-summary { grid-template-columns: repeat(3, 1fr); } }
+  .analytics-summary .stat-card {
+    background: var(--card); border-radius: 12px; padding: 14px 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border);
+    text-align: center;
+  }
+  .analytics-summary .stat-card .stat-icon { font-size: 20px; margin-bottom: 4px; }
+  .analytics-summary .stat-card .stat-val { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--primary); }
+  .analytics-summary .stat-card .stat-lbl { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .analytics-summary .stat-card.accent .stat-val { color: var(--accent); }
+  .top-list { list-style: none; }
+  .top-list li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .top-list li:last-child { border-bottom: none; }
+  .top-list .rank { font-weight: 700; color: var(--primary); width: 28px; font-size: 15px; }
+  .top-list .name { flex: 1; font-weight: 500; }
+  .top-list .score { background: var(--accent-light); color: #8B6914; padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+  .no-data-msg { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
+  .no-data-msg .icon { font-size: 48px; opacity: 0.4; margin-bottom: 12px; }
+  .empty { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+  .empty .icon { font-size: 48px; opacity: 0.4; margin-bottom: 12px; }
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--primary); color: #fff; padding: 14px 20px; border-radius: 12px;
+    font-size: 13px; font-weight: 600; z-index: 200;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15); transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+    max-width: calc(100vw - 32px); text-align: center; word-wrap: break-word;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .hidden { display: none !important; }
+  .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .setup-banner {
+    background: #FFF3CD; border: 1px solid #FFECB5; border-radius: 12px;
+    padding: 16px; margin-bottom: 14px; font-size: 13px; color: #664D03; line-height: 1.6;
+  }
+  .ontime-bar { display: flex; border-radius: 8px; overflow: hidden; height: 28px; margin-top: 6px; font-size: 12px; font-weight: 600; }
+  .ontime-bar > div { display: flex; align-items: center; justify-content: center; color: #fff; min-width: 30px; transition: width 0.5s; }
+
+  /* ─── Mobile Responsive ─── */
+  @media (max-width: 400px) {
+    .container { padding: 10px; }
+    .section { padding: 14px; }
+    .header h1 { font-size: 20px; }
+    .field input, .field textarea, .field select { font-size: 14px; padding: 10px 12px; }
+    .field-row { flex-direction: column; gap: 0; }
+    .star-row svg { width: 28px; height: 28px; }
+    .star-row { gap: 3px; }
+    .toggle-btn { padding: 6px 10px; font-size: 12px; }
+    .card { padding: 14px; }
+    .card .owner { font-size: 15px; }
+    .card .ratings-grid { grid-template-columns: 1fr; gap: 4px; }
+    .card .ratings-grid .rg-item { gap: 3px; }
+    .card .ratings-grid .rg-label { min-width: 50px; font-size: 10px; }
+    .card .chip { font-size: 11px; padding: 3px 8px; }
+    .chart-section { padding: 12px; }
+    .chart-section .chart-title { font-size: 14px; }
+    .analytics-summary .stat-card { padding: 10px 6px; }
+    .analytics-summary .stat-card .stat-val { font-size: 18px; }
+    .analytics-summary .stat-card .stat-lbl { font-size: 9px; }
+    .top-list li { font-size: 13px; padding: 8px 0; }
+    .top-list .score { font-size: 11px; padding: 2px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏠 Interior Feedback Hub</h1>
+  <p>Rate & review your interior designer experience</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-form" onclick="switchTab('form')">✏️ Add</button>
+  <button class="tab" id="tab-view" onclick="switchTab('view')">📋 Reviews <span id="badge" style="background:#D4A853;color:#fff;font-size:11px;padding:1px 7px;border-radius:10px;margin-left:3px;">0</span></button>
+  <button class="tab" id="tab-analytics" onclick="switchTab('analytics')">📊 Analytics</button>
+</div>
+
+<!-- ===================== FORM TAB ===================== -->
+<div class="container" id="panel-form">
+  <div id="setup-msg" class="setup-banner hidden">
+    ⚠️ <strong>Setup needed:</strong> Set your Google Apps Script URL in the <code>SCRIPT_URL</code> variable.
+  </div>
+
+  <div class="section">
+    <div class="section-title">🏠 Property Details</div>
+    <div class="field">
+      <label>Owner Name <span class="req">*</span></label>
+      <input type="text" id="f-owner" placeholder="e.g. Rajesh Kumar">
+    </div>
+    <div class="field">
+      <label>Flat No <span class="req">*</span></label>
+      <input type="text" id="f-flat" placeholder="e.g. A-501">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>BHK</label>
+        <select id="f-bhk">
+          <option value="">Select</option>
+          <option>1 BHK</option><option>1.5 BHK</option><option>2 BHK</option>
+          <option>2.5 BHK</option><option>3 BHK</option><option>3.5 BHK</option>
+          <option>4 BHK</option><option>4+ BHK</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Area (Sq.Ft)</label>
+        <input type="text" id="f-sqft" placeholder="e.g. 1450">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🎨 Interior Designer Details</div>
+    <div class="field">
+      <label>Designer / Firm Name <span class="req">*</span></label>
+      <input type="text" id="f-interior" placeholder="e.g. HomeLane / XYZ Interiors">
+    </div>
+    <div class="field">
+      <label>Website</label>
+      <input type="url" id="f-website" placeholder="e.g. www.homelane.com">
+    </div>
+    <div class="field">
+      <label>Contact Number</label>
+      <input type="tel" id="f-contact" placeholder="e.g. 9876543210">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">⭐ Ratings</div>
+    <div class="field">
+      <label>Company Behaviour <span class="req">*</span></label>
+      <div class="star-row" id="r-company" data-val="0"></div>
+      <div class="hint">How the company/firm treated you overall</div>
+    </div>
+    <div class="field">
+      <label>Worker Behaviour <span class="req">*</span></label>
+      <div class="star-row" id="r-worker" data-val="0"></div>
+      <div class="hint">Politeness, cleanliness, professionalism of on-site workers</div>
+    </div>
+    <div class="field">
+      <label>Commitment & Trust <span class="req">*</span></label>
+      <div class="star-row" id="r-trust" data-val="0"></div>
+      <div class="hint">Did they keep their promises and commitments?</div>
+    </div>
+    <div class="field">
+      <label>Value for Money <span class="req">*</span></label>
+      <div class="star-row" id="r-price" data-val="0"></div>
+      <div class="hint">Was the pricing fair for what you received?</div>
+    </div>
+    <div class="field">
+      <label>Design Quality <span class="req">*</span></label>
+      <div class="star-row" id="r-design" data-val="0"></div>
+      <div class="hint">Quality of design suggestions, material choices, finish</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📋 Project Experience</div>
+    <div class="field">
+      <label>Completed On Time? <span class="req">*</span></label>
+      <div class="toggle-group" id="t-ontime" data-val="">
+        <button type="button" class="toggle-btn" data-v="Yes" onclick="setToggle('t-ontime','Yes',this)">✅ Yes</button>
+        <button type="button" class="toggle-btn" data-v="Delayed" onclick="setToggle('t-ontime','Delayed',this)">⏳ Delayed</button>
+        <button type="button" class="toggle-btn" data-v="Very Delayed" onclick="setToggle('t-ontime','Very Delayed',this)">❌ Very Delayed</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Hidden / Extra Charges?</label>
+      <div class="toggle-group" id="t-hidden" data-val="">
+        <button type="button" class="toggle-btn" data-v="No Hidden Charges" onclick="setToggle('t-hidden','No Hidden Charges',this)">✅ None</button>
+        <button type="button" class="toggle-btn" data-v="Some Extra" onclick="setToggle('t-hidden','Some Extra',this)">⚠️ Some Extra</button>
+        <button type="button" class="toggle-btn" data-v="Lots of Hidden" onclick="setToggle('t-hidden','Lots of Hidden',this)">❌ Lots</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Flexible to Changes?</label>
+      <div class="toggle-group" id="t-flexible" data-val="">
+        <button type="button" class="toggle-btn" data-v="Very Flexible" onclick="setToggle('t-flexible','Very Flexible',this)">✅ Very</button>
+        <button type="button" class="toggle-btn" data-v="Somewhat" onclick="setToggle('t-flexible','Somewhat',this)">⚠️ Somewhat</button>
+        <button type="button" class="toggle-btn" data-v="Rigid" onclick="setToggle('t-flexible','Rigid',this)">❌ Rigid</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>After-Service Support?</label>
+      <div class="toggle-group" id="t-support" data-val="">
+        <button type="button" class="toggle-btn" data-v="Good" onclick="setToggle('t-support','Good',this)">✅ Good</button>
+        <button type="button" class="toggle-btn" data-v="Average" onclick="setToggle('t-support','Average',this)">⚠️ Average</button>
+        <button type="button" class="toggle-btn" data-v="Poor/None" onclick="setToggle('t-support','Poor/None',this)">❌ Poor/None</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section">
+    <div class="section-title">💬 Feedback</div>
+    <div class="field">
+      <label>Comments <span class="req">*</span></label>
+      <textarea id="f-comments" placeholder="Share your overall experience — timeliness, quality, suggestions, responsiveness..."></textarea>
+    </div>
+    <div class="field">
+      <label>Remarks</label>
+      <textarea id="f-remarks" rows="2" style="min-height:50px" placeholder="Any additional remarks (optional)"></textarea>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" onclick="submitFeedback()">Submit Feedback ✓</button>
+  <div style="height:30px"></div>
+</div>
+
+<!-- ===================== VIEW TAB ===================== -->
+<div class="container hidden" id="panel-view">
+  <div class="summary-bar">
+    <div class="summary-card"><div class="num" id="s-total">0</div><div class="lbl">Reviews</div></div>
+    <div class="summary-card"><div class="num" id="s-overall">—</div><div class="lbl">Overall Avg</div></div>
+    <div class="summary-card"><div class="num" id="s-ontime">—</div><div class="lbl">On-Time %</div></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:14px">
+    <div class="search-bar" style="flex:1;margin-bottom:0">
+      <input type="text" id="search" placeholder="🔍 Search owner, flat, designer..." oninput="renderList()">
+    </div>
+    <button class="refresh-btn" onclick="loadAllFeedback()">↻</button>
+  </div>
+  <div id="feedback-list"></div>
+</div>
+
+<!-- ===================== ANALYTICS TAB ===================== -->
+<div class="container hidden" id="panel-analytics">
+  <div id="analytics-content">
+    <div class="no-data-msg"><div class="icon">📊</div><p>Loading analytics...</p></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOAehRx1zg-E4GJ7ycTFThxljOtnDHzJtolSprKYyv44TF6LZqoffoGbFCwNntq4Hq3g/exec';
+
+const RL = ['','Very Bad','Bad','Average','Good','Very Good'];
+const CHART_COLORS = ['#2C5F4B','#D4A853','#6B9B8A','#E8C97A','#1E4435','#B8956A','#4A8B73','#C4975C','#8B6914','#3A7D63'];
+
+const RATING_FIELDS = [
+  { key: 'company', label: 'Company', icon: '🏢', color: '#2C5F4B' },
+  { key: 'worker', label: 'Workers', icon: '👷', color: '#4A8B73' },
+  { key: 'trust', label: 'Trust', icon: '🤝', color: '#1E4435' },
+  { key: 'price', label: 'Value', icon: '💰', color: '#D4A853' },
+  { key: 'design', label: 'Design', icon: '🎨', color: '#8B6914' },
+];
+
+// Build star rows
+document.querySelectorAll('.star-row').forEach(row => {
+  for (let i = 1; i <= 5; i++) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('width','30'); svg.setAttribute('height','30');
+    svg.setAttribute('viewBox','0 0 24 24'); svg.dataset.v = i;
+    svg.innerHTML = '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l6.91-1.01z"/>';
+    svg.onclick = () => {
+      row.dataset.val = i;
+      row.querySelectorAll('svg').forEach(s => s.classList.toggle('filled', +s.dataset.v <= i));
+      let t = row.querySelector('.rtxt');
+      if (!t) { t = document.createElement('span'); t.className='rtxt'; row.appendChild(t); }
+      t.textContent = RL[i];
+    };
+    row.appendChild(svg);
+  }
+});
+
+function setToggle(groupId, val, btn) {
+  const grp = document.getElementById(groupId);
+  grp.dataset.val = val;
+  grp.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active-yes','active-no','active-partial'));
+  const siblings = [...grp.querySelectorAll('.toggle-btn')];
+  const idx = siblings.indexOf(btn);
+  if (idx === 0) btn.classList.add('active-yes');
+  else if (idx === siblings.length - 1) btn.classList.add('active-no');
+  else btn.classList.add('active-partial');
+}
+
+function switchTab(t) {
+  ['form','view','analytics'].forEach(p => {
+    document.getElementById('panel-' + p).classList.toggle('hidden', t !== p);
+    document.getElementById('tab-' + p).classList.toggle('active', t === p);
+  });
+  if (t === 'view') loadAllFeedback();
+  if (t === 'analytics') loadAllFeedback().then(() => renderAnalytics());
+}
+
+function showToast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function starSVG(filled, size=16) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${filled?'#D4A853':'#D5CFC7'}"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>`;
+}
+
+let allEntries = [];
+let chartInstances = {};
+function destroyChart(id) { if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; } }
+
+// SUBMIT
+async function submitFeedback() {
+  if (!SCRIPT_URL) { showToast('⚠️ Setup needed: set SCRIPT_URL'); return; }
+  const owner = document.getElementById('f-owner').value.trim();
+  const flat = document.getElementById('f-flat').value.trim();
+  const bhk = document.getElementById('f-bhk').value;
+  const sqft = document.getElementById('f-sqft').value.trim();
+  const interior = document.getElementById('f-interior').value.trim();
+  const website = document.getElementById('f-website').value.trim();
+  const contact = document.getElementById('f-contact').value.trim();
+  const company = +document.getElementById('r-company').dataset.val;
+  const worker = +document.getElementById('r-worker').dataset.val;
+  const trust = +document.getElementById('r-trust').dataset.val;
+  const price = +document.getElementById('r-price').dataset.val;
+  const design = +document.getElementById('r-design').dataset.val;
+  const ontime = document.getElementById('t-ontime').dataset.val;
+  const hidden = document.getElementById('t-hidden').dataset.val;
+  const flexible = document.getElementById('t-flexible').dataset.val;
+  const support = document.getElementById('t-support').dataset.val;
+
+  const comments = document.getElementById('f-comments').value.trim();
+  const remarks = document.getElementById('f-remarks').value.trim();
+
+  if (!owner || !flat || !interior || !company || !worker || !trust || !price || !design || !ontime || !comments) {
+    showToast('⚠️ Please fill all required fields'); return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
+
+  const data = {
+    action: 'add', owner, flat, bhk, sqft, interior, website, contact,
+    company, worker, trust, price, design,
+    ontime, hidden, flexible, support,
+    comments, remarks,
+    date: new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+  };
+
+  try {
+    const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
+    const json = await res.json();
+    if (json.status === 'success') {
+      showToast('✅ Feedback submitted successfully!');
+      ['f-owner','f-flat','f-sqft','f-interior','f-website','f-contact','f-comments','f-remarks'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f-bhk').selectedIndex = 0;
+      document.querySelectorAll('.star-row').forEach(r => {
+        r.dataset.val = '0';
+        r.querySelectorAll('svg').forEach(s => s.classList.remove('filled'));
+        const t = r.querySelector('.rtxt'); if (t) t.textContent = '';
+      });
+      document.querySelectorAll('.toggle-group').forEach(g => {
+        g.dataset.val = '';
+        g.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active-yes','active-no','active-partial'));
+      });
+    } else { showToast('❌ Error: ' + (json.message || 'Unknown')); }
+  } catch (e) { showToast('❌ Network error. Try again.'); }
+  btn.disabled = false;
+  btn.textContent = 'Submit Feedback ✓';
+}
+
+// LOAD ALL
+async function loadAllFeedback() {
+  if (!SCRIPT_URL) { document.getElementById('setup-msg').classList.remove('hidden'); return; }
+  document.getElementById('feedback-list').innerHTML = '<div style="text-align:center;padding:40px;color:#6B6B6B"><span class="loading-spinner" style="border-color:rgba(44,95,75,0.2);border-top-color:#2C5F4B"></span> Loading...</div>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getAll');
+    const json = await res.json();
+    if (json.status === 'success') {
+      allEntries = json.data || [];
+      document.getElementById('badge').textContent = allEntries.length;
+      renderList();
+    }
+  } catch (e) {
+    document.getElementById('feedback-list').innerHTML = '<div class="empty"><div class="icon">❌</div><p>Could not load feedback.</p></div>';
+  }
+}
+
+// RENDER LIST
+function renderList() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const filtered = allEntries.filter(d =>
+    (d.owner||'').toLowerCase().includes(q) ||
+    (d.flat||'').toLowerCase().includes(q) ||
+    (d.interior||'').toLowerCase().includes(q)
+  );
+  const total = allEntries.length;
+  document.getElementById('s-total').textContent = total;
+  if (total) {
+    const avgAll = allEntries.reduce((s,d) => {
+      const vals = RATING_FIELDS.map(rf => +d[rf.key]||0).filter(v=>v>0);
+      return s + (vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0);
+    }, 0) / total;
+    document.getElementById('s-overall').textContent = avgAll.toFixed(1);
+    const ontimeCount = allEntries.filter(d => d.ontime === 'Yes').length;
+    document.getElementById('s-ontime').textContent = Math.round(ontimeCount/total*100) + '%';
+  }
+  if (!filtered.length) {
+    document.getElementById('feedback-list').innerHTML = '<div class="empty"><div class="icon">🏡</div><p>No feedback entries found.</p></div>';
+    return;
+  }
+  document.getElementById('feedback-list').innerHTML = filtered.map(d => {
+    const ratingHtml = RATING_FIELDS.map(rf => {
+      const val = +d[rf.key] || 0;
+      const stars = [1,2,3,4,5].map(i => starSVG(i<=val, 12)).join('');
+      return `<div class="rg-item"><span class="rg-label">${rf.icon} ${rf.label}</span><span class="rg-stars">${stars}</span><span style="font-size:10px;font-weight:600;color:${rf.color};margin-left:3px">${val}/5</span></div>`;
+    }).join('');
+    const chipClass = v => {
+      if (!v) return '';
+      if (['Yes','No Hidden Charges','Very Flexible','Good'].includes(v)) return 'chip-yes';
+      if (['Very Delayed','Lots of Hidden','Rigid','Poor/None'].includes(v)) return 'chip-no';
+      return 'chip-partial';
+    };
+    const chips = [];
+    if (d.bhk) chips.push(`<div class="chip">${esc(d.bhk)}</div>`);
+    if (d.sqft) chips.push(`<div class="chip">${esc(d.sqft)} sq.ft</div>`);
+    if (d.ontime) chips.push(`<div class="chip ${chipClass(d.ontime)}">${d.ontime === 'Yes' ? '✅ On Time' : d.ontime === 'Delayed' ? '⏳ Delayed' : '❌ Very Delayed'}</div>`);
+    if (d.hidden) chips.push(`<div class="chip ${chipClass(d.hidden)}">${esc(d.hidden)}</div>`);
+    if (d.flexible) chips.push(`<div class="chip ${chipClass(d.flexible)}">${esc(d.flexible)}</div>`);
+    if (d.support) chips.push(`<div class="chip ${chipClass(d.support)}">Support: ${esc(d.support)}</div>`);
+    const contactParts = [];
+    if (d.website) {
+      const url = (d.website+'').startsWith('http') ? d.website : 'https://'+d.website;
+      contactParts.push(`🌐 <a href="${esc(url)}" target="_blank">${esc(d.website)}</a>`);
+    }
+    if (d.contact) contactParts.push(`📞 <a href="tel:${esc(d.contact)}">${esc(d.contact)}</a>`);
+
+    return `
+      <div class="card">
+        <div class="hdr">
+          <div class="owner">${esc(d.owner)}</div>
+          <div class="flat-badge">Flat ${esc(d.flat)}</div>
+        </div>
+        <div class="chips">${chips.join('')}
+          <div class="chip">🎨 <strong>${esc(d.interior)}</strong></div>
+        </div>
+        <div class="ratings-grid">${ratingHtml}</div>
+        ${contactParts.length ? `<div class="contact-row">${contactParts.join(' &nbsp;|&nbsp; ')}</div>` : ''}
+        <div class="comment">${esc(d.comments)}</div>
+        ${d.remarks ? `<div style="font-size:13px;color:#6B6B6B;margin-bottom:10px"><strong>Remarks:</strong> ${esc(d.remarks)}</div>` : ''}
+        <div class="footer"><span>${esc(d.date||'')}</span></div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  ANALYTICS
+// ═══════════════════════════════════════════════════
+function renderAnalytics() {
+  const container = document.getElementById('analytics-content');
+  if (!allEntries.length) {
+    container.innerHTML = '<div class="no-data-msg"><div class="icon">📊</div><p>No feedback data yet. Submit some reviews first!</p></div>';
+    return;
+  }
+  const total = allEntries.length;
+
+  // Averages
+  const avgs = {};
+  RATING_FIELDS.forEach(rf => {
+    avgs[rf.key] = (allEntries.reduce((s,d) => s + (+d[rf.key]||0), 0) / total).toFixed(1);
+  });
+  const avgOverall = (RATING_FIELDS.reduce((s,rf) => s + parseFloat(avgs[rf.key]), 0) / RATING_FIELDS.length).toFixed(1);
+
+  // Distributions
+  const dists = {};
+  RATING_FIELDS.forEach(rf => {
+    dists[rf.key] = [0,0,0,0,0];
+    allEntries.forEach(d => { const v = (+d[rf.key]||1)-1; if (v>=0 && v<5) dists[rf.key][v]++; });
+  });
+
+  // Toggle counts
+  const cnt = (field, val) => allEntries.filter(d => d[field] === val).length;
+  const ontimeYes = cnt('ontime','Yes'), ontimeDelayed = cnt('ontime','Delayed'), ontimeVery = cnt('ontime','Very Delayed');
+  const hiddenNone = cnt('hidden','No Hidden Charges'), hiddenSome = cnt('hidden','Some Extra'), hiddenLots = cnt('hidden','Lots of Hidden');
+  const flexVery = cnt('flexible','Very Flexible'), flexSome = cnt('flexible','Somewhat'), flexRigid = cnt('flexible','Rigid');
+  const supGood = cnt('support','Good'), supAvg = cnt('support','Average'), supPoor = cnt('support','Poor/None');
+
+  // Designer stats
+  const designerMap = {};
+  allEntries.forEach(d => {
+    const name = (d.interior||'Unknown').trim();
+    if (!designerMap[name]) designerMap[name] = { count: 0, sums: {}, ontimeYes: 0 };
+    designerMap[name].count++;
+    if (d.ontime === 'Yes') designerMap[name].ontimeYes++;
+    RATING_FIELDS.forEach(rf => {
+      if (!designerMap[name].sums[rf.key]) designerMap[name].sums[rf.key] = 0;
+      designerMap[name].sums[rf.key] += (+d[rf.key]||0);
+    });
+  });
+  const designers = Object.entries(designerMap).map(([name, v]) => {
+    const obj = { name, count: v.count, ontimePct: Math.round(v.ontimeYes/v.count*100) };
+    let totalAvg = 0;
+    RATING_FIELDS.forEach(rf => {
+      obj['avg_' + rf.key] = (v.sums[rf.key] / v.count).toFixed(1);
+      totalAvg += v.sums[rf.key] / v.count;
+    });
+    obj.avgOverall = (totalAvg / RATING_FIELDS.length).toFixed(1);
+    return obj;
+  }).sort((a,b) => b.avgOverall - a.avgOverall);
+
+  // Satisfaction
+  const getSat = d => {
+    const vals = RATING_FIELDS.map(rf => +d[rf.key]||0).filter(v=>v>0);
+    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  };
+  const satisfied = allEntries.filter(d => getSat(d) >= 4).length;
+  const neutral = allEntries.filter(d => { const a = getSat(d); return a >= 2.5 && a < 4; }).length;
+  const unsatisfied = total - satisfied - neutral;
+
+  function stackedBar(yes, mid, no, yL, mL, nL) {
+    const t = yes + mid + no;
+    if (!t) return '<div style="color:#6B6B6B;font-size:13px;">No data</div>';
+    const pY = (yes/t*100).toFixed(0), pM = (mid/t*100).toFixed(0), pN = (no/t*100).toFixed(0);
+    return `<div class="ontime-bar">
+      ${yes ? `<div style="width:${pY}%;background:#2C5F4B" title="${yL}: ${yes}">${pY}%</div>` : ''}
+      ${mid ? `<div style="width:${pM}%;background:#D4A853" title="${mL}: ${mid}">${pM}%</div>` : ''}
+      ${no ? `<div style="width:${pN}%;background:#C0392B" title="${nL}: ${no}">${pN}%</div>` : ''}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#6B6B6B;margin-top:4px;flex-wrap:wrap;gap:4px">
+      <span>✅ ${yL}: ${yes}</span><span>⚠️ ${mL}: ${mid}</span><span>❌ ${nL}: ${no}</span>
+    </div>`;
+  }
+
+  container.innerHTML = `
+    <div class="analytics-summary">
+      <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-val">${total}</div><div class="stat-lbl">Reviews</div></div>
+      <div class="stat-card accent"><div class="stat-icon">⭐</div><div class="stat-val">${avgOverall}</div><div class="stat-lbl">Overall</div></div>
+      ${RATING_FIELDS.map(rf => `<div class="stat-card"><div class="stat-icon">${rf.icon}</div><div class="stat-val">${avgs[rf.key]}</div><div class="stat-lbl">${rf.label}</div></div>`).join('')}
+      <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-val">${total ? Math.round(ontimeYes/total*100) : 0}%</div><div class="stat-lbl">On-Time</div></div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">🕸️ Average Ratings Overview</div>
+      <div class="chart-canvas-wrap" style="max-width:340px;margin:0 auto"><canvas id="chart-radar" height="300"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">📊 Rating Distribution (All Categories)</div>
+      <div class="chart-canvas-wrap"><canvas id="chart-dist" height="260"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">⏱️ Completed On Time</div>
+      ${stackedBar(ontimeYes, ontimeDelayed, ontimeVery, 'On Time', 'Delayed', 'Very Delayed')}
+    </div>
+    <div class="chart-section">
+      <div class="chart-title">💸 Hidden / Extra Charges</div>
+      ${stackedBar(hiddenNone, hiddenSome, hiddenLots, 'None', 'Some Extra', 'Lots')}
+    </div>
+    <div class="chart-section">
+      <div class="chart-title">🔄 Flexibility to Changes</div>
+      ${stackedBar(flexVery, flexSome, flexRigid, 'Very Flexible', 'Somewhat', 'Rigid')}
+    </div>
+    <div class="chart-section">
+      <div class="chart-title">🛠️ After-Service Support</div>
+      ${stackedBar(supGood, supAvg, supPoor, 'Good', 'Average', 'Poor/None')}
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">😊 Overall Satisfaction</div>
+      <div class="chart-canvas-wrap" style="max-width:280px;margin:0 auto"><canvas id="chart-sat" height="280"></canvas></div>
+    </div>
+
+    ${designers.length > 1 ? `
+    <div class="chart-section">
+      <div class="chart-title">🎨 Designer Comparison</div>
+      <div class="chart-canvas-wrap"><canvas id="chart-designers" height="${Math.max(200, designers.length * 50)}"></canvas></div>
+    </div>` : ''}
+
+    <div class="chart-section">
+      <div class="chart-title">📈 Reviews per Designer</div>
+      <div class="chart-canvas-wrap" style="max-width:300px;margin:0 auto"><canvas id="chart-pie" height="300"></canvas></div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">🏆 Top Rated Designers</div>
+      ${designers.length ? `<ul class="top-list">${designers.slice(0,5).map((d,i) => `
+        <li>
+          <span class="rank">${['🥇','🥈','🥉','4.','5.'][i]}</span>
+          <span class="name">${esc(d.name)} <span style="color:#6B6B6B;font-weight:400;font-size:12px">(${d.count} review${d.count>1?'s':''} · ${d.ontimePct}% on-time)</span></span>
+          <span class="score">${d.avgOverall} ⭐</span>
+        </li>`).join('')}</ul>` : '<p style="color:#6B6B6B;font-size:14px;">Not enough data</p>'}
+    </div>
+  `;
+
+  // Charts
+  const baseFont = { family: "'DM Sans', sans-serif", size: 12, weight: '500' };
+  const gridColor = 'rgba(0,0,0,0.06)';
+  Chart.defaults.font = baseFont;
+
+  // Radar
+  destroyChart('radar');
+  chartInstances['radar'] = new Chart(document.getElementById('chart-radar'), {
+    type: 'radar',
+    data: {
+      labels: RATING_FIELDS.map(rf => rf.label),
+      datasets: [{
+        label: 'Average',
+        data: RATING_FIELDS.map(rf => parseFloat(avgs[rf.key])),
+        backgroundColor: 'rgba(44,95,75,0.15)',
+        borderColor: '#2C5F4B', borderWidth: 2.5,
+        pointBackgroundColor: '#2C5F4B', pointRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, backdropColor: 'transparent', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.08)' }, pointLabels: { font: { size: 13, weight: '600' } } } }
+    }
+  });
+
+  // Distribution
+  destroyChart('dist');
+  chartInstances['dist'] = new Chart(document.getElementById('chart-dist'), {
+    type: 'bar',
+    data: {
+      labels: ['1 ★','2 ★','3 ★','4 ★','5 ★'],
+      datasets: RATING_FIELDS.map((rf, idx) => ({
+        label: rf.label, data: dists[rf.key],
+        backgroundColor: CHART_COLORS[idx], borderRadius: 4, barPercentage: 0.75,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 12, font: { size: 11 } } } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: gridColor } }, x: { grid: { display: false } } }
+    }
+  });
+
+  // Satisfaction
+  destroyChart('sat');
+  chartInstances['sat'] = new Chart(document.getElementById('chart-sat'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Satisfied (≥4)', 'Neutral (2.5–4)', 'Unsatisfied (<2.5)'],
+      datasets: [{ data: [satisfied, neutral, unsatisfied], backgroundColor: ['#2C5F4B', '#D4A853', '#C0392B'], borderWidth: 3, borderColor: '#fff', hoverOffset: 8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 14 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${((ctx.raw/total)*100).toFixed(0)}%)` } } }
+    }
+  });
+
+  // Designer Comparison
+  if (designers.length > 1) {
+    destroyChart('designers');
+    chartInstances['designers'] = new Chart(document.getElementById('chart-designers'), {
+      type: 'bar',
+      data: {
+        labels: designers.map(d => d.name),
+        datasets: RATING_FIELDS.map((rf, idx) => ({
+          label: rf.label, data: designers.map(d => d['avg_' + rf.key]),
+          backgroundColor: CHART_COLORS[idx], borderRadius: 3, barPercentage: 0.7,
+        }))
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 10, font: { size: 11 } } } },
+        scales: { x: { min: 0, max: 5, grid: { color: gridColor }, ticks: { stepSize: 1 } }, y: { grid: { display: false } } }
+      }
+    });
+  }
+
+  // Pie
+  destroyChart('pie');
+  chartInstances['pie'] = new Chart(document.getElementById('chart-pie'), {
+    type: 'pie',
+    data: {
+      labels: designers.map(d => d.name),
+      datasets: [{ data: designers.map(d => d.count), backgroundColor: designers.map((_,i) => CHART_COLORS[i % CHART_COLORS.length]), borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} review${ctx.raw>1?'s':''}` } } }
+    }
+  });
+}
+
+if (!SCRIPT_URL) document.getElementById('setup-msg').classList.remove('hidden');
+</script>
+</body>
+</html>
