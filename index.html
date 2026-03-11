@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Interior Feedback Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700&family=Playfair+Display:wght@600;700&display=swap');
+
+  :root {
+    --bg: #F5F0EB;
+    --card: #FFFFFF;
+    --primary: #2C5F4B;
+    --primary-light: #3A7D63;
+    --primary-dark: #1E4435;
+    --accent: #D4A853;
+    --accent-light: #F0DDB4;
+    --text: #1A1A1A;
+    --text-muted: #6B6B6B;
+    --border: #E0D8CF;
+    --danger: #C0392B;
+    --star-empty: #D5CFC7;
+    --star-fill: #D4A853;
+    --chart-1: #2C5F4B;
+    --chart-2: #D4A853;
+    --chart-3: #6B9B8A;
+    --chart-4: #E8C97A;
+    --chart-5: #1E4435;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    padding: 28px 20px 22px;
+    text-align: center;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 4px 20px rgba(44,95,75,0.3);
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 70%, rgba(212,168,83,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 40%);
+    pointer-events: none;
+  }
+  .header h1 { color: #fff; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; position: relative; }
+  .header p { color: rgba(255,255,255,0.65); font-size: 12px; margin-top: 4px; letter-spacing: 0.5px; position: relative; }
+
+  /* ─── Tabs ─── */
+  .tabs {
+    display: flex; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 78px; z-index: 99;
+  }
+  .tab {
+    flex: 1; padding: 14px 8px; text-align: center;
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    border: none; background: none; cursor: pointer;
+    border-bottom: 3px solid transparent; font-family: inherit;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .tab:hover { color: var(--primary); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* ─── Container ─── */
+  .container { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .section {
+    background: var(--card); border-radius: 14px;
+    padding: 20px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px; font-weight: 700; color: var(--primary);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ─── Form Fields ─── */
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .field label .req { color: var(--danger); }
+  .field input, .field textarea {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 15px;
+    background: #FAFAF7; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus, .field textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(44,95,75,0.1);
+    background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ─── Stars ─── */
+  .star-row { display: flex; gap: 6px; align-items: center; }
+  .star-row svg { cursor: pointer; transition: transform 0.15s; fill: var(--star-empty); }
+  .star-row svg:hover { transform: scale(1.15); }
+  .star-row svg.filled { fill: var(--star-fill); }
+  .star-row .rtxt { margin-left: 10px; font-size: 13px; font-weight: 600; color: var(--accent); }
+
+  /* ─── Submit Button ─── */
+  .submit-btn {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: #fff; border: none; border-radius: 12px;
+    font-family: inherit; font-size: 16px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 15px rgba(44,95,75,0.3);
+    transition: transform 0.1s, box-shadow 0.2s;
+  }
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ─── Summary Bar ─── */
+  .summary-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+  .summary-card {
+    flex: 1; background: var(--card); border-radius: 12px;
+    padding: 14px 10px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+  }
+  .summary-card .num { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: var(--primary); }
+  .summary-card .lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ─── Search & Controls ─── */
+  .search-bar { margin-bottom: 14px; }
+  .search-bar input {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    font-family: inherit; font-size: 14px; background: var(--card); outline: none;
+  }
+  .search-bar input:focus { border-color: var(--primary); }
+  .refresh-btn {
+    padding: 8px 16px; background: var(--primary); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: background 0.2s;
+  }
+  .refresh-btn:hover { background: var(--primary-light); }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--card); border-radius: 14px; padding: 18px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .card .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .card .owner { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: var(--primary); }
+  .card .flat-badge { background: var(--accent-light); color: #8B6914; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 8px; }
+  .card .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .card .chip { background: #F5F0EB; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+  .card .stars-row { display: flex; align-items: center; gap: 3px; margin-bottom: 6px; }
+  .card .stars-row .label { margin-left: 6px; font-size: 12px; font-weight: 600; }
+  .card .comment { font-size: 14px; color: var(--text-muted); line-height: 1.6; padding: 10px; background: #FAFAF7; border-radius: 8px; margin-bottom: 10px; }
+  .card .footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); padding-top: 8px; border-top: 1px solid var(--border); }
+  .card .footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+  /* ─── Analytics ─── */
+  .chart-section {
+    background: var(--card); border-radius: 14px;
+    padding: 20px; margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    animation: slideUp 0.35s ease;
+  }
+  .chart-section .chart-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight: 700; color: var(--primary);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .chart-canvas-wrap {
+    position: relative; width: 100%;
+  }
+  .chart-canvas-wrap canvas { width: 100% !important; }
+
+  .analytics-summary {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+  }
+  .analytics-summary .stat-card {
+    background: var(--card); border-radius: 12px; padding: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border);
+    text-align: center; animation: slideUp 0.3s ease;
+  }
+  .analytics-summary .stat-card .stat-icon { font-size: 24px; margin-bottom: 6px; }
+  .analytics-summary .stat-card .stat-val { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--primary); }
+  .analytics-summary .stat-card .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .analytics-summary .stat-card.accent .stat-val { color: var(--accent); }
+
+  .top-list { list-style: none; }
+  .top-list li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .top-list li:last-child { border-bottom: none; }
+  .top-list .rank { font-weight: 700; color: var(--primary); width: 28px; font-size: 15px; }
+  .top-list .name { flex: 1; font-weight: 500; }
+  .top-list .score {
+    background: var(--accent-light); color: #8B6914;
+    padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  }
+
+  .no-data-msg {
+    text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px;
+  }
+  .no-data-msg .icon { font-size: 48px; opacity: 0.4; margin-bottom: 12px; }
+
+  /* ─── Utilities ─── */
+  .empty { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+  .empty .icon { font-size: 48px; opacity: 0.4; margin-bottom: 12px; }
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--primary); color: #fff; padding: 14px 24px; border-radius: 12px;
+    font-size: 14px; font-weight: 600; z-index: 200; white-space: nowrap;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15); transition: transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .hidden { display: none !important; }
+  .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .setup-banner {
+    background: #FFF3CD; border: 1px solid #FFECB5; border-radius: 12px;
+    padding: 16px; margin-bottom: 14px; font-size: 13px; color: #664D03; line-height: 1.6;
+  }
+  .setup-banner code { background: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏠 Interior Feedback Hub</h1>
+  <p>Rate & review your interior designer experience</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-form" onclick="switchTab('form')">✏️ Add</button>
+  <button class="tab" id="tab-view" onclick="switchTab('view')">📋 Reviews <span id="badge" style="background:#D4A853;color:#fff;font-size:11px;padding:1px 7px;border-radius:10px;margin-left:3px;">0</span></button>
+  <button class="tab" id="tab-analytics" onclick="switchTab('analytics')">📊 Analytics</button>
+</div>
+
+<!-- ===================== FORM TAB ===================== -->
+<div class="container" id="panel-form">
+  <div id="setup-msg" class="setup-banner hidden">
+    ⚠️ <strong>Setup needed:</strong> Scroll to the bottom of this page source and set your Google Apps Script URL in the <code>SCRIPT_URL</code> variable.
+  </div>
+  <div class="section">
+    <div class="section-title">🏠 Property Details</div>
+    <div class="field">
+      <label>Owner Name <span class="req">*</span></label>
+      <input type="text" id="f-owner" placeholder="e.g. Rajesh Kumar">
+    </div>
+    <div class="field">
+      <label>Flat No <span class="req">*</span></label>
+      <input type="text" id="f-flat" placeholder="e.g. A-501">
+    </div>
+    <div class="field">
+      <label>BHK / Sq.Ft</label>
+      <input type="text" id="f-bhk" placeholder="e.g. 3 BHK / 1450 sq.ft">
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">🎨 Interior Details</div>
+    <div class="field">
+      <label>Interior Designer / Firm Name <span class="req">*</span></label>
+      <input type="text" id="f-interior" placeholder="e.g. HomeLane / XYZ Interiors">
+    </div>
+    <div class="field">
+      <label>Website / Contact</label>
+      <input type="text" id="f-website" placeholder="e.g. www.homelane.com or 9876543210">
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">⭐ Ratings</div>
+    <div class="field">
+      <label>Behaviour Rating <span class="req">*</span></label>
+      <div class="star-row" id="r-behaviour" data-val="0"></div>
+      <div class="hint">1 = Very Bad, 5 = Very Good</div>
+    </div>
+    <div class="field">
+      <label>Commitment & Trust <span class="req">*</span></label>
+      <div class="star-row" id="r-trust" data-val="0"></div>
+      <div class="hint">1 = Very Bad, 5 = Very Good</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">💬 Feedback</div>
+    <div class="field">
+      <label>Comments <span class="req">*</span></label>
+      <textarea id="f-comments" placeholder="Share about: Timeliness, Charges, Quality of suggestions, Flexibility to changes, Taking feedback..."></textarea>
+    </div>
+    <div class="field">
+      <label>Remarks</label>
+      <textarea id="f-remarks" rows="2" style="min-height:50px" placeholder="Any additional remarks (optional)"></textarea>
+    </div>
+  </div>
+  <button class="submit-btn" id="submit-btn" onclick="submitFeedback()">Submit Feedback ✓</button>
+  <div style="height:30px"></div>
+</div>
+
+<!-- ===================== VIEW TAB ===================== -->
+<div class="container hidden" id="panel-view">
+  <div class="summary-bar">
+    <div class="summary-card"><div class="num" id="s-total">0</div><div class="lbl">Total Reviews</div></div>
+    <div class="summary-card"><div class="num" id="s-beh">—</div><div class="lbl">Avg Behaviour</div></div>
+    <div class="summary-card"><div class="num" id="s-trust">—</div><div class="lbl">Avg Trust</div></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:14px">
+    <div class="search-bar" style="flex:1;margin-bottom:0">
+      <input type="text" id="search" placeholder="🔍 Search owner, flat, interior..." oninput="renderList()">
+    </div>
+    <button class="refresh-btn" onclick="loadAllFeedback()">↻ Refresh</button>
+  </div>
+  <div id="feedback-list"></div>
+</div>
+
+<!-- ===================== ANALYTICS TAB ===================== -->
+<div class="container hidden" id="panel-analytics">
+  <div id="analytics-content">
+    <div class="no-data-msg"><div class="icon">📊</div><p>Loading analytics...</p></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  CONFIGURATION — PASTE YOUR GOOGLE APPS SCRIPT URL BELOW   ║
+// ╚══════════════════════════════════════════════════════════════╝
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOAehRx1zg-E4GJ7ycTFThxljOtnDHzJtolSprKYyv44TF6LZqoffoGbFCwNntq4Hq3g/exec';
+
+const RL = ['','Very Bad','Bad','Average','Good','Very Good'];
+const CHART_COLORS = ['#2C5F4B','#D4A853','#6B9B8A','#E8C97A','#1E4435','#B8956A','#4A8B73','#C4975C'];
+
+// ─── Build star rows ───
+document.querySelectorAll('.star-row').forEach(row => {
+  for (let i = 1; i <= 5; i++) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('width','36'); svg.setAttribute('height','36');
+    svg.setAttribute('viewBox','0 0 24 24'); svg.dataset.v = i;
+    svg.innerHTML = '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l6.91-1.01z"/>';
+    svg.onclick = () => {
+      row.dataset.val = i;
+      row.querySelectorAll('svg').forEach(s => s.classList.toggle('filled', +s.dataset.v <= i));
+      let t = row.querySelector('.rtxt');
+      if (!t) { t = document.createElement('span'); t.className='rtxt'; row.appendChild(t); }
+      t.textContent = RL[i];
+    };
+    row.appendChild(svg);
+  }
+});
+
+// ─── Tabs ───
+function switchTab(t) {
+  ['form','view','analytics'].forEach(p => {
+    document.getElementById('panel-' + p).classList.toggle('hidden', t !== p);
+    document.getElementById('tab-' + p).classList.toggle('active', t === p);
+  });
+  if (t === 'view') loadAllFeedback();
+  if (t === 'analytics') { loadAllFeedback().then(() => renderAnalytics()); }
+}
+
+function showToast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function starSVG(filled) {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="${filled?'#D4A853':'#D5CFC7'}"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>`;
+}
+
+let allEntries = [];
+let chartInstances = {};
+
+// ─── Destroy chart safely ───
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+// ─── SUBMIT ───
+async function submitFeedback() {
+  if (!SCRIPT_URL) { showToast('⚠️ Setup needed: set SCRIPT_URL'); return; }
+  const owner = document.getElementById('f-owner').value.trim();
+  const flat = document.getElementById('f-flat').value.trim();
+  const bhk = document.getElementById('f-bhk').value.trim();
+  const interior = document.getElementById('f-interior').value.trim();
+  const website = document.getElementById('f-website').value.trim();
+  const behaviour = +document.getElementById('r-behaviour').dataset.val;
+  const trust = +document.getElementById('r-trust').dataset.val;
+  const comments = document.getElementById('f-comments').value.trim();
+  const remarks = document.getElementById('f-remarks').value.trim();
+  if (!owner || !flat || !interior || !behaviour || !trust || !comments) {
+    showToast('⚠️ Please fill all required fields'); return;
+  }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
+  const data = {
+    action: 'add', owner, flat, bhk, interior, website,
+    behaviour, trust, comments, remarks,
+    date: new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+  };
+  try {
+    const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
+    const json = await res.json();
+    if (json.status === 'success') {
+      showToast('✅ Feedback submitted successfully!');
+      ['f-owner','f-flat','f-bhk','f-interior','f-website','f-comments','f-remarks'].forEach(id => document.getElementById(id).value = '');
+      document.querySelectorAll('.star-row').forEach(r => {
+        r.dataset.val = '0';
+        r.querySelectorAll('svg').forEach(s => s.classList.remove('filled'));
+        const t = r.querySelector('.rtxt'); if (t) t.textContent = '';
+      });
+    } else { showToast('❌ Error: ' + (json.message || 'Unknown error')); }
+  } catch (e) { showToast('❌ Network error. Please try again.'); }
+  btn.disabled = false;
+  btn.textContent = 'Submit Feedback ✓';
+}
+
+// ─── LOAD ALL ───
+async function loadAllFeedback() {
+  if (!SCRIPT_URL) {
+    document.getElementById('setup-msg').classList.remove('hidden');
+    document.getElementById('feedback-list').innerHTML = '<div class="empty"><div class="icon">⚙️</div><p>Please set up the Google Sheets backend first.</p></div>';
+    return;
+  }
+  document.getElementById('feedback-list').innerHTML = '<div style="text-align:center;padding:40px;color:#6B6B6B"><span class="loading-spinner" style="border-color:rgba(44,95,75,0.2);border-top-color:#2C5F4B"></span> Loading...</div>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getAll');
+    const json = await res.json();
+    if (json.status === 'success') {
+      allEntries = json.data || [];
+      document.getElementById('badge').textContent = allEntries.length;
+      renderList();
+    }
+  } catch (e) {
+    document.getElementById('feedback-list').innerHTML = '<div class="empty"><div class="icon">❌</div><p>Could not load feedback.</p></div>';
+  }
+}
+
+// ─── RENDER LIST ───
+function renderList() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const filtered = allEntries.filter(d =>
+    (d.owner||'').toLowerCase().includes(q) ||
+    (d.flat||'').toLowerCase().includes(q) ||
+    (d.interior||'').toLowerCase().includes(q)
+  );
+  document.getElementById('s-total').textContent = allEntries.length;
+  if (allEntries.length) {
+    document.getElementById('s-beh').textContent = (allEntries.reduce((s,d) => s + (+d.behaviour||0), 0) / allEntries.length).toFixed(1);
+    document.getElementById('s-trust').textContent = (allEntries.reduce((s,d) => s + (+d.trust||0), 0) / allEntries.length).toFixed(1);
+  }
+  if (!filtered.length) {
+    document.getElementById('feedback-list').innerHTML = '<div class="empty"><div class="icon">🏡</div><p>No feedback entries yet.<br>Be the first to add one!</p></div>';
+    return;
+  }
+  document.getElementById('feedback-list').innerHTML = filtered.map(d => {
+    const bStars = [1,2,3,4,5].map(i => starSVG(i <= +d.behaviour)).join('');
+    const tStars = [1,2,3,4,5].map(i => starSVG(i <= +d.trust)).join('');
+    const contact = d.website
+      ? ((d.website+'').match(/^[\d\s+\-]+$/)
+          ? `<a href="tel:${esc(d.website)}">${esc(d.website)}</a>`
+          : `<a href="${(d.website+'').startsWith('http') ? esc(d.website) : 'https://'+esc(d.website)}" target="_blank">${esc(d.website)}</a>`)
+      : '—';
+    return `
+      <div class="card">
+        <div class="hdr">
+          <div class="owner">${esc(d.owner)}</div>
+          <div class="flat-badge">Flat ${esc(d.flat)}</div>
+        </div>
+        <div class="chips">
+          ${d.bhk ? `<div class="chip"><strong>${esc(d.bhk)}</strong></div>` : ''}
+          <div class="chip">Interior: <strong>${esc(d.interior)}</strong></div>
+        </div>
+        <div class="stars-row">${bStars}<span class="label" style="color:#D4A853">Behaviour: ${d.behaviour}/5</span></div>
+        <div class="stars-row">${tStars}<span class="label" style="color:#2C5F4B">Trust: ${d.trust}/5</span></div>
+        <div class="comment">${esc(d.comments)}</div>
+        ${d.remarks ? `<div style="font-size:13px;color:#6B6B6B;margin-bottom:10px"><strong>Remarks:</strong> ${esc(d.remarks)}</div>` : ''}
+        <div class="footer"><span>${esc(d.date||'')}</span><span>${contact}</span></div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  ANALYTICS
+// ═══════════════════════════════════════════════════
+function renderAnalytics() {
+  const container = document.getElementById('analytics-content');
+
+  if (!allEntries.length) {
+    container.innerHTML = '<div class="no-data-msg"><div class="icon">📊</div><p>No feedback data available yet.<br>Submit some reviews first!</p></div>';
+    return;
+  }
+
+  // ─── Compute stats ───
+  const total = allEntries.length;
+  const avgBeh = (allEntries.reduce((s,d) => s + (+d.behaviour||0), 0) / total).toFixed(1);
+  const avgTrust = (allEntries.reduce((s,d) => s + (+d.trust||0), 0) / total).toFixed(1);
+  const avgOverall = (((+avgBeh) + (+avgTrust)) / 2).toFixed(1);
+
+  // Rating distributions
+  const behDist = [0,0,0,0,0];
+  const trustDist = [0,0,0,0,0];
+  allEntries.forEach(d => {
+    const b = (+d.behaviour||1) - 1;
+    const t = (+d.trust||1) - 1;
+    if (b >= 0 && b < 5) behDist[b]++;
+    if (t >= 0 && t < 5) trustDist[t]++;
+  });
+
+  // Designer stats
+  const designerMap = {};
+  allEntries.forEach(d => {
+    const name = (d.interior||'Unknown').trim();
+    if (!designerMap[name]) designerMap[name] = { count: 0, behSum: 0, trustSum: 0 };
+    designerMap[name].count++;
+    designerMap[name].behSum += (+d.behaviour||0);
+    designerMap[name].trustSum += (+d.trust||0);
+  });
+  const designers = Object.entries(designerMap).map(([name, v]) => ({
+    name, count: v.count,
+    avgBeh: (v.behSum / v.count).toFixed(1),
+    avgTrust: (v.trustSum / v.count).toFixed(1),
+    avgOverall: ((v.behSum + v.trustSum) / (v.count * 2)).toFixed(1)
+  })).sort((a,b) => b.avgOverall - a.avgOverall);
+
+  // Satisfaction tiers
+  const satisfied = allEntries.filter(d => (+d.behaviour + +d.trust) / 2 >= 4).length;
+  const neutral = allEntries.filter(d => { const a = (+d.behaviour + +d.trust) / 2; return a >= 2.5 && a < 4; }).length;
+  const unsatisfied = total - satisfied - neutral;
+
+  // Build HTML
+  container.innerHTML = `
+    <!-- Summary Cards -->
+    <div class="analytics-summary">
+      <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-val">${total}</div><div class="stat-lbl">Total Reviews</div></div>
+      <div class="stat-card accent"><div class="stat-icon">⭐</div><div class="stat-val">${avgOverall}</div><div class="stat-lbl">Overall Avg</div></div>
+      <div class="stat-card"><div class="stat-icon">🤝</div><div class="stat-val">${avgBeh}</div><div class="stat-lbl">Avg Behaviour</div></div>
+      <div class="stat-card"><div class="stat-icon">🔒</div><div class="stat-val">${avgTrust}</div><div class="stat-lbl">Avg Trust</div></div>
+    </div>
+
+    <!-- Rating Distribution -->
+    <div class="chart-section">
+      <div class="chart-title">📊 Rating Distribution</div>
+      <div class="chart-canvas-wrap"><canvas id="chart-dist" height="220"></canvas></div>
+    </div>
+
+    <!-- Satisfaction Breakdown -->
+    <div class="chart-section">
+      <div class="chart-title">😊 Satisfaction Breakdown</div>
+      <div class="chart-canvas-wrap" style="max-width:280px;margin:0 auto"><canvas id="chart-sat" height="280"></canvas></div>
+    </div>
+
+    <!-- Designer Comparison -->
+    ${designers.length > 1 ? `
+    <div class="chart-section">
+      <div class="chart-title">🎨 Designer Comparison — Avg Ratings</div>
+      <div class="chart-canvas-wrap"><canvas id="chart-designers" height="${Math.max(180, designers.length * 45)}"></canvas></div>
+    </div>` : ''}
+
+    <!-- Reviews per Designer -->
+    <div class="chart-section">
+      <div class="chart-title">📈 Reviews per Designer</div>
+      <div class="chart-canvas-wrap" style="max-width:300px;margin:0 auto"><canvas id="chart-pie" height="300"></canvas></div>
+    </div>
+
+    <!-- Behaviour vs Trust Scatter -->
+    <div class="chart-section">
+      <div class="chart-title">🔍 Behaviour vs Trust (per Review)</div>
+      <div class="chart-canvas-wrap"><canvas id="chart-scatter" height="260"></canvas></div>
+    </div>
+
+    <!-- Top Designers -->
+    <div class="chart-section">
+      <div class="chart-title">🏆 Top Rated Designers</div>
+      ${designers.length ? `<ul class="top-list">${designers.slice(0,5).map((d,i) => `
+        <li>
+          <span class="rank">${['🥇','🥈','🥉','4.','5.'][i]}</span>
+          <span class="name">${esc(d.name)} <span style="color:#6B6B6B;font-weight:400;font-size:12px">(${d.count} review${d.count>1?'s':''})</span></span>
+          <span class="score">${d.avgOverall} ⭐</span>
+        </li>`).join('')}</ul>` : '<p style="color:#6B6B6B;font-size:14px;">Not enough data</p>'}
+    </div>
+  `;
+
+  // ─── Render Charts ───
+  const baseFont = { family: "'DM Sans', sans-serif", size: 12, weight: '500' };
+  const gridColor = 'rgba(0,0,0,0.06)';
+  Chart.defaults.font = baseFont;
+
+  // 1) Rating Distribution (grouped bar)
+  destroyChart('dist');
+  chartInstances['dist'] = new Chart(document.getElementById('chart-dist'), {
+    type: 'bar',
+    data: {
+      labels: ['1 ★\nVery Bad','2 ★\nBad','3 ★\nAverage','4 ★\nGood','5 ★\nVery Good'],
+      datasets: [
+        { label: 'Behaviour', data: behDist, backgroundColor: '#2C5F4B', borderRadius: 6, barPercentage: 0.7 },
+        { label: 'Trust', data: trustDist, backgroundColor: '#D4A853', borderRadius: 6, barPercentage: 0.7 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 16 } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: gridColor } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  // 2) Satisfaction Doughnut
+  destroyChart('sat');
+  chartInstances['sat'] = new Chart(document.getElementById('chart-sat'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Satisfied (≥4)', 'Neutral (2.5–4)', 'Unsatisfied (<2.5)'],
+      datasets: [{
+        data: [satisfied, neutral, unsatisfied],
+        backgroundColor: ['#2C5F4B', '#D4A853', '#C0392B'],
+        borderWidth: 3, borderColor: '#fff',
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 14 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${((ctx.raw/total)*100).toFixed(0)}%)` } }
+      }
+    }
+  });
+
+  // 3) Designer Comparison (horizontal bar)
+  if (designers.length > 1) {
+    destroyChart('designers');
+    chartInstances['designers'] = new Chart(document.getElementById('chart-designers'), {
+      type: 'bar',
+      data: {
+        labels: designers.map(d => d.name),
+        datasets: [
+          { label: 'Behaviour', data: designers.map(d => d.avgBeh), backgroundColor: '#2C5F4B', borderRadius: 4, barPercentage: 0.6 },
+          { label: 'Trust', data: designers.map(d => d.avgTrust), backgroundColor: '#D4A853', borderRadius: 4, barPercentage: 0.6 }
+        ]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 14 } } },
+        scales: {
+          x: { min: 0, max: 5, grid: { color: gridColor }, ticks: { stepSize: 1 } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // 4) Reviews per Designer (pie)
+  destroyChart('pie');
+  chartInstances['pie'] = new Chart(document.getElementById('chart-pie'), {
+    type: 'pie',
+    data: {
+      labels: designers.map(d => d.name),
+      datasets: [{
+        data: designers.map(d => d.count),
+        backgroundColor: designers.map((_,i) => CHART_COLORS[i % CHART_COLORS.length]),
+        borderWidth: 2, borderColor: '#fff', hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} review${ctx.raw>1?'s':''}` } }
+      }
+    }
+  });
+
+  // 5) Scatter: Behaviour vs Trust
+  destroyChart('scatter');
+  // Add jitter for overlapping points
+  const scatterData = allEntries.map(d => ({
+    x: (+d.behaviour||0) + (Math.random()-0.5)*0.3,
+    y: (+d.trust||0) + (Math.random()-0.5)*0.3,
+    label: d.owner
+  }));
+  chartInstances['scatter'] = new Chart(document.getElementById('chart-scatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Reviews',
+        data: scatterData,
+        backgroundColor: 'rgba(44,95,75,0.55)',
+        borderColor: '#2C5F4B',
+        borderWidth: 1.5,
+        pointRadius: 7,
+        pointHoverRadius: 10,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw.label}: Behaviour ${Math.round(ctx.raw.x)}, Trust ${Math.round(ctx.raw.y)}`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Behaviour Rating', font: { weight: '700' } }, min: 0.5, max: 5.5, ticks: { stepSize: 1 }, grid: { color: gridColor } },
+        y: { title: { display: true, text: 'Trust Rating', font: { weight: '700' } }, min: 0.5, max: 5.5, ticks: { stepSize: 1 }, grid: { color: gridColor } }
+      }
+    }
+  });
+}
+
+// Init
+if (!SCRIPT_URL) document.getElementById('setup-msg').classList.remove('hidden');
+</script>
+</body>
+</html>
